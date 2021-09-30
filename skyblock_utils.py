@@ -18,10 +18,15 @@ def get_auctions_from_player(uuid):
 def get_bazaar_data():
     return get_info("https://api.hypixel.net/skyblock/bazaar")
 
+# Returns recently finished auctions data
+def get_recently_ended_auctions():
+    return get_info("https://api.hypixel.net/skyblock/auctions_ended")
+
 # Returns total coin count in buy orders on the bazaar
 def get_bazaar_buy_order_value(bazaar_data):
     sum_coins = 0
     price_increase_threshold = 2
+    buy_order_values = []
 
     # For every product
     for item_name, item_data in bazaar_data.get("products", {}).items():
@@ -40,8 +45,33 @@ def get_bazaar_buy_order_value(bazaar_data):
                 if(buy_order.get("pricePerUnit", 0) < (item_expected_value * price_increase_threshold)):
                     item_sum_coins += buy_order.get("amount", 0) * buy_order.get("pricePerUnit", 0)
 
-        print(f"{item_name} | {round(item_sum_coins)}")
+        buy_order_values.append((item_name, item_sum_coins))
         sum_coins += item_sum_coins
+
+    sort_bazaar_buy_orders_by_value(buy_order_values)
+    return sum_coins
+
+# Sorts and displays a list of buy order items by total value
+def sort_bazaar_buy_orders_by_value(buy_order_values):
+
+    # Sort items by values
+    buy_order_values.sort(key = lambda x: -x[1])
+
+    # Display items and values
+    for (item_name, item_sum_coins) in buy_order_values:
+        print(f"{item_name.ljust(30, ' ')} | {round(item_sum_coins):,}")
+
+    return
+
+# Returns total coin count in recently ended auctions
+def get_ended_auctions_value(ended_auctions_data):
+    sum_coins = 0
+
+    # For every auction object
+    for auction_obj in ended_auctions_data.get("auctions", {}):
+
+        # Add the sale price to the sum
+        sum_coins += auction_obj.get("price", 0)
 
     return sum_coins
 
@@ -51,4 +81,6 @@ API_KEY = json.loads(API_FILE.read())["API_KEY"]
 example_player_uuid = "6a61acfe47c04f038ca6be4ae358e259"
 
 # Code
-pprint(get_bazaar_buy_order_value(get_bazaar_data()))
+print(f"Bazaar Buy Order Eco: {get_bazaar_buy_order_value(get_bazaar_data()):,}")
+
+print(f"Finished Auctions (60s) Eco: {get_ended_auctions_value(get_recently_ended_auctions()):,}")
