@@ -22,6 +22,20 @@ def get_bazaar_data():
 def get_recently_ended_auctions():
     return get_info("https://api.hypixel.net/skyblock/auctions_ended")
 
+# Returns a list of all active auctions
+def get_auction_data():
+    all_auctions = []
+
+    first_page = get_info("https://api.hypixel.net/skyblock/auctions?page=0")
+
+    auction_data = first_page.get("auctions", [])
+
+    for page in range(1, first_page.get("totalPages", 0) + 1):
+        current_page = get_info(f"https://api.hypixel.net/skyblock/auctions?page={page}")
+        all_auctions += current_page.get("auctions", [])
+
+    return all_auctions
+
 # Returns total coin count in buy orders on the bazaar
 def get_bazaar_buy_order_value(bazaar_data):
     sum_coins = 0
@@ -75,12 +89,60 @@ def get_ended_auctions_value(ended_auctions_data):
 
     return sum_coins
 
+# Returns auction items after passing them through the filter
+def filter_auction_items(auction_data, item_filters):
+    filtered_items = []
+
+    # For every auction object
+    for auction in auction_data:
+
+        # For every individual filter
+        for item_filter in item_filters:
+
+            # For every filter argument
+            for filter_property, filter_value in item_filter.items():
+
+                # String filters (item_name)
+                if(type(filter_value) == type("")):
+                    if(filter_value not in auction.get(filter_property, "")):
+                        break
+
+                # Boolean filters (bin)
+                elif(type(filter_value) == type(True)):
+                    if(filter_value != auction.get(filter_property, False)):
+                        break
+
+                # If all subfilters have passed
+                filtered_items.append(auction)
+
+    # filtered_items = sorted(filtered_items, key=lambda x: x['price'])
+
+    return filtered_items
+
+# Displays top x items from y list of auction objects
+def display_top_auction_items(filtered_items, amount):
+    for i in range(min(amount, len(filtered_items))):
+        print(f"\n#{i+1} {filtered_items[i]['item_name']}\n - {filtered_items[i]['starting_bid']:,}\n- /viewauction {filtered_items[i]['uuid']}")
+
 # Variables
 API_FILE = open("API_KEY.json", "r")
 API_KEY = json.loads(API_FILE.read())["API_KEY"]
 example_player_uuid = "6a61acfe47c04f038ca6be4ae358e259"
+item_filters = (
+    {"item_name": "Drill", "bin": True},
+    )
 
 # Code
 print(f"Bazaar Buy Order Eco: {get_bazaar_buy_order_value(get_bazaar_data()):,}")
 
 print(f"Finished Auctions (60s) Eco: {get_ended_auctions_value(get_recently_ended_auctions()):,}")
+
+auction_data = get_auction_data()
+
+print(f"Amount of auction items: {len(auction_data):,}")
+
+filtered_items = filter_auction_items(auction_data, item_filters)
+
+print(f"Filtered auction items: {len(filtered_items):,}")
+
+display_top_auction_items(filtered_items, 3)
